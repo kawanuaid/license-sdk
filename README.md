@@ -50,6 +50,64 @@ KawanuaLicense.init({
 });
 ```
 
+#### React
+
+```jsx
+import { useEffect, useState } from 'react';
+
+function App() {
+  const [license, setLicense] = useState(null);
+
+  useEffect(() => {
+    KawanuaLicense.init({
+      token: window.__LICENSE_TOKEN__, // inject dari server-side rendering
+      onReady: (state) => setLicense(state),
+    });
+    return () => KawanuaLicense.destroy();
+  }, []);
+
+  if (!license) return <p>Memverifikasi lisensi...</p>;
+
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      {KawanuaLicense.can('api_access') && <ApiSection />}
+      <p>Plan: {license.plan}</p>
+    </div>
+  );
+}
+```
+
+#### Vue 3
+
+```js
+import { onMounted, onUnmounted } from 'vue';
+
+onMounted(() => {
+  KawanuaLicense.init({
+    token: import.meta.env.VITE_LICENSE_TOKEN,
+    onReady: (state) => { license.value = state; },
+  });
+});
+onUnmounted(() => KawanuaLicense.destroy());
+```
+
+#### Vanilla JS
+
+```html
+<script src="https://cdn.kawanua.id/sdk/license.min.js"></script>
+<script>
+  KawanuaLicense.init({
+    token: document.querySelector('meta[name="license-token"]').content,
+    onReady: (state) => {
+      if (!KawanuaLicense.can('white_label')) {
+        document.getElementById('footer-branding').style.display = 'block';
+      }
+    },
+  });
+</script>
+```
+
 ### Mengecek Akses Fitur
 
 Setelah inisialisasi berhasil, kamu bisa mengecek apakah sebuah fitur diperbolehkan:
