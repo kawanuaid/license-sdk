@@ -80,4 +80,4 @@ SDK secara otomatis mengatur batasan fitur berdasarkan plan:
 ISC
 
 ---
-*Dibuat oleh [Kawanua Indo Digital](https://kawanua.id)*
+*Dibuat oleh [Kawanua Indo Digital](https://labs.kawanua.co)*

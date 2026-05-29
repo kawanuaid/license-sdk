@@ -29,22 +29,10 @@
 
   // ─── Konstanta ──────────────────────────────────────────────────
 
-  /**
-   * Public key RS256 dari server lisensi Kawanua.
-   * Klien hanya bisa VERIFY — tidak bisa forge token baru.
-   * Ganti dengan public key aktual setelah generate keypair di server.
-   */
-  const KAWANUA_PUBLIC_KEY_PEM = `-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2a2rwplBQLzHPZe5TNJF
-... (ganti dengan public key RS256 aktual dari server kamu) ...
------END PUBLIC KEY-----`;
-
-  /**
-   * URL endpoint JWKS publik — alternatif lebih dinamis dari hardcode PEM.
-   * SDK akan fetch public key dari sini jika PEM tidak di-set.
-   * Endpoint ini harus tersedia di server Kawanua.
-   */
-  const JWKS_URL = "https://lisensi.kawanua.workers.dev/.well-known/jwks.json";
+  // Public key RS256 dari server lisensi Kawanua (Base64-encoded PEM).
+  // Klien hanya bisa VERIFY — tidak bisa forge token baru.
+  const KAWANUA_PUBLIC_KEY_B64 =
+    "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUEzTFgrbDdKbS9VQ25nZ1VmcVhXMAoxazN2M2FYR0RRdEF3Z2NyeVFad1lUY2x5SzdQdFdxMG10ejArUDRyTW0veFBhdmlaQlRaYUt4aVdScWVTQUhUCk4wVDdVSFRSbnJjaElwY1JaeExiTXlzWHJ6eS9NcjZ3cTF1aW5FUjJ1TGNjRE9Hc2swR0Q4QU1TWU54Q1NsZ24KcFREN200R0g0TE1DTzNPU2dXYm9Ua0VWdkp2TXN5ckZ2TTlTT2N1UG9NTmJyTGk2SDVnOTR2OU9UWkRvTzhZeQo0RXUwQjRaM3luVS9iRzY2TFZmWGNTYlNBaGU4TWZ6NDZ2UUxzMXJJNUpqZElhajAxWDdsamw1cWdWcklCRHhkCjhneXUxK1FZcXZjYTdzaTRUVkZzOTlYV0xlUVpBWWh2UC9kT3gvdWxvNE1CL1doQU9NRWNwai9kaGVHYk5ieTcKZ3dJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg=="; // <- isi dengan base64(PUBLIC_KEY_PEM)
 
   /** Feature map per plan — single source of truth */
   const PLAN_FEATURES = {
@@ -112,36 +100,20 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2a2rwplBQLzHPZe5TNJF
   }
 
   /**
-   * Import public key RS256 dari PEM string ke CryptoKey.
-   * Menggunakan Web Crypto API (tersedia di semua browser modern).
+   * Import public key RS256 dari base64-encoded PEM ke CryptoKey.
    */
-  async function _importPublicKey(pem) {
+  async function _importPublicKey(b64) {
+    const pem = atob(b64);
     const pemBody = pem
       .replace(/-----BEGIN PUBLIC KEY-----/, "")
       .replace(/-----END PUBLIC KEY-----/, "")
       .replace(/\s+/g, "");
+
     const der = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
+
     return crypto.subtle.importKey(
       "spki",
       der.buffer,
-      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-      false,
-      ["verify"],
-    );
-  }
-
-  /**
-   * Fetch public key dari JWKS endpoint.
-   * Fallback jika PEM belum di-hardcode (mode dinamis).
-   */
-  async function _fetchPublicKeyFromJWKS(kid) {
-    const res = await fetch(JWKS_URL, { cache: "force-cache" });
-    const jwks = await res.json();
-    const jwk = kid ? jwks.keys.find((k) => k.kid === kid) : jwks.keys[0];
-    if (!jwk) throw new Error("No matching key found in JWKS");
-    return crypto.subtle.importKey(
-      "jwk",
-      jwk,
       { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
       false,
       ["verify"],
@@ -197,14 +169,14 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2a2rwplBQLzHPZe5TNJF
       );
     }
 
-    // Import public key (prioritas: hardcode PEM → JWKS endpoint)
-    let publicKey;
-    const hasPem = KAWANUA_PUBLIC_KEY_PEM.includes("..."); // placeholder check
-    if (!hasPem) {
-      publicKey = await _importPublicKey(KAWANUA_PUBLIC_KEY_PEM);
-    } else {
-      publicKey = await _fetchPublicKeyFromJWKS(header.kid);
+    // Fail-fast jika public key belum dikonfigurasi.
+    if (!KAWANUA_PUBLIC_KEY_B64) {
+      throw new Error(
+        "[KawanuaLicense] KAWANUA_PUBLIC_KEY_B64 belum dikonfigurasi. " +
+          "Hubungi Kawanua untuk mendapatkan public key SDK kamu.",
+      );
     }
+    const publicKey = await _importPublicKey(KAWANUA_PUBLIC_KEY_B64);
 
     // Verify signature
     const isValid = await _verifySignature(token, publicKey);
