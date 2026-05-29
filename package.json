@@ -1,6 +1,6 @@
 {
   "name": "@kawanua/license-sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Drop-in SDK untuk klien yang menggunakan lisensi Kawanua.",
   "keywords": [
     "kawanua",
